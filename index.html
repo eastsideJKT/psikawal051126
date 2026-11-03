@@ -191,7 +191,7 @@
 </div>
 
 <script>
-    // CONFIG SUPABASE (GANTI SESUAI PROJECT SUPABASE KAMU)
+    // CONFIG SUPABASE
     const SUPABASE_URL = "https://egjmalhtyxtbmkplgrxu.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_BlAodQ8yw8NBX20vVhaTRA__wyTK_64";
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -215,6 +215,7 @@
     };
 
     let payload = {};
+    let selectedFile = null;
 
     window.onload = function() {
         const kecSelect = document.getElementById('kecamatan');
@@ -265,11 +266,17 @@
     function handleReview(e) {
         e.preventDefault();
         
+        const fileInput = document.getElementById('fileKta');
+        if (fileInput.files.length === 0) {
+            alert("Harap upload foto/scan KTA terlebih dahulu!");
+            return;
+        }
+        selectedFile = fileInput.files[0];
+
         payload = {
             nama: document.getElementById('nama').value,
             jenis_kelamin: document.getElementById('jenisKelamin').value,
             no_hp: document.getElementById('noHp').value,
-            email: document.getElementById('email').value,
             kecamatan: document.getElementById('kecamatan').value,
             kelurahan: document.getElementById('kelurahan').value,
             pengurus: document.getElementById('pengurus').value,
@@ -281,7 +288,7 @@
             <p><strong>Nama:</strong> ${payload.nama}</p>
             <p><strong>Jenis Kelamin:</strong> ${payload.jenis_kelamin}</p>
             <p><strong>No. HP:</strong> ${payload.no_hp}</p>
-            <p><strong>Email:</strong> ${payload.email}</p>
+            <p><strong>File KTA:</strong> ${selectedFile.name}</p>
             <p><strong>Kecamatan:</strong> ${payload.kecamatan}</p>
             <p><strong>Kelurahan:</strong> ${payload.kelurahan}</p>
             <p><strong>Pengurus:</strong> ${payload.pengurus}</p>
@@ -301,6 +308,25 @@
         document.getElementById('modalButtons').style.display = 'none';
 
         try {
+            // Upload file KTA ke Supabase Storage bucket 'kta_uploads'
+            const fileExt = selectedFile.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+            const filePath = `kta_files/${fileName}`;
+
+            const { error: uploadError } = await supabaseClient.storage
+                .from('kta_uploads')
+                .upload(filePath, selectedFile);
+
+            if (uploadError) throw uploadError;
+
+            // Ambil public URL dari file yang di-upload
+            const { data: publicUrlData } = supabaseClient.storage
+                .from('kta_uploads')
+                .getPublicUrl(filePath);
+
+            payload.kta_url = publicUrlData.publicUrl;
+
+            // Simpan data ke tabel pendaftaran
             const { data, error } = await supabaseClient
                 .from('pendaftaran')
                 .insert([payload]);
