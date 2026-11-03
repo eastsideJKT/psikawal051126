@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Admin Absensi - Penpol PSI Jaktim</title>
+    
+    <!-- SUPABASE JS SDK & SHEETJS EXCEL LIBRARY -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            display: none;
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h2 { color: #e31b23; margin-bottom: 5px; }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .search-box { display: flex; gap: 10px; }
+
+        input[type="text"], input[type="email"], input[type="password"] {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .search-box input[type="text"] { width: 230px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th { background-color: #f8f9fa; }
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-primary { background-color: #0056b3; color: white; }
+        .btn-excel { background-color: #1d6f42; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-info { background-color: #17a2b8; color: white; text-decoration: none; display: inline-block; font-size: 12px; padding: 4px 8px; margin-top: 4px;}
+        .btn-disabled { background-color: #6c757d; color: white; cursor: not-allowed; }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: white;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .badge-success { background-color: #28a745; }
+        .badge-warning { background-color: #ffc107; color: #333; }
+
+        /* MODAL LOGIN */
+        .login-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .login-card {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+
+        .login-card h3 { margin-top: 0; color: #e31b23; }
+
+        .login-card input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            box-sizing: border-box;
+        }
+
+        .login-card button { width: 100%; padding: 10px; margin-top: 10px; }
+
+        .error-msg {
+            color: red;
+            font-size: 13px;
+            display: none;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- MODAL LOGIN ADMIN -->
+<div id="loginModal" class="login-overlay">
+    <div class="login-card">
+        <h3>Login Admin Penpol</h3>
+        <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Masukkan Username (Email) dan Password resmi.</p>
+        <form onsubmit="handleLogin(event)">
+            <input type="email" id="adminEmail" placeholder="Email Admin..." required>
+            <input type="password" id="adminPassword" placeholder="Password..." required>
+            <div id="errorMsg" class="error-msg">Login gagal! Periksa email/password.</div>
+            <button type="submit" id="btnLogin" class="btn btn-primary">Masuk</button>
+        </form>
+    </div>
+</div>
+
+<!-- HALAMAN ADMIN UTAMA -->
+<div id="adminContent" class="container">
+    <div class="header-bar">
+        <div>
+            <h2>Portal Kehadiran Registrasi Ulang</h2>
+            <small>Database Supabase Real-Time (Single Device Session)</small>
+        </div>
+        <div class="search-box">
+            <input type="text" id="searchInput" onkeyup="filterData()" placeholder="Cari nama / no HP...">
+            <button id="btnRefresh" class="btn btn-primary" onclick="loadData()">Refresh Data</button>
+            <button class="btn btn-excel" onclick="exportToExcel()">Export Excel</button>
+            <button class="btn btn-danger" onclick="handleLogout()">Logout</button>
+        </div>
+    </div>
+
+    <table id="adminTable">
+        <thead>
+            <tr>
+                <th>No</th>
+                <th>Nama Peserta</th>
+                <th>No HP</th>
+                <th>KTA</th>
+                <th>Wilayah</th>
+                <th>Pengurus & Jabatan</th>
+                <th>Status Kehadiran</th>
+                <th>Aksi Verifikasi</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <tr>
+                <td colspan="8" style="text-align:center;">Memuat data dari Supabase...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // CONFIG SUPABASE (SESUAIKAN DENGAN PROJECT BARU ANDA)
+    const SUPABASE_URL = "https://ropbwbvjqrdzycabgwyt.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_K4EyVCYmXMIKPuXKVk94dw_J0vfPPq9";
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let listPeserta = [];
+    let myDeviceToken = localStorage.getItem('device_token');
+
+    if (!myDeviceToken) {
+        myDeviceToken = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        localStorage.setItem('device_token', myDeviceToken);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        if (session) {
+            const isValidDevice = await checkSingleDeviceSession(session.user.id);
+            if (isValidDevice) {
+                showAdminPanel();
+            } else {
+                alert("Akun ini baru saja diakses dari Device/Browser lain! Anda dikeluarkan.");
+                await supabaseClient.auth.signOut();
+            }
+        }
+    });
+
+    async function checkSingleDeviceSession(userId) {
+        const { data, error } = await supabaseClient
+            .from('active_sessions')
+            .select('device_token')
+            .eq('user_id', userId)
+            .single();
+
+        if (data && data.device_token !== myDeviceToken) {
+            return false;
+        }
+        return true;
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById('adminEmail').value;
+        const password = document.getElementById('adminPassword').value;
+        const errorMsg = document.getElementById('errorMsg');
+        const btnLogin = document.getElementById('btnLogin');
+
+        btnLogin.disabled = true;
+        btnLogin.innerText = "Memproses...";
+        errorMsg.style.display = 'none';
+
+        try {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+
+            if (error) throw error;
+
+            await supabaseClient
+                .from('active_sessions')
+                .upsert({ 
+                    user_id: data.user.id, 
+                    device_token: myDeviceToken,
+                    updated_at: new Date().toISOString()
+                });
+
+            showAdminPanel();
+        } catch (err) {
+            errorMsg.innerText = "Login gagal: " + err.message;
+            errorMsg.style.display = 'block';
+        } finally {
+            btnLogin.disabled = false;
+            btnLogin.innerText = "Masuk";
+        }
+    }
+
+    function showAdminPanel() {
+        document.getElementById('loginModal').style.display = 'none';
+        document.getElementById('adminContent').style.display = 'block';
+        loadData();
+    }
+
+    async function handleLogout() {
+        await supabaseClient.auth.signOut();
+        location.reload();
+    }
+
+    async function loadData() {
+        const tableBody = document.getElementById('tableBody');
+        const btnRefresh = document.getElementById('btnRefresh');
+        
+        btnRefresh.disabled = true;
+        btnRefresh.innerText = "Memuat...";
+
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                const isValid = await checkSingleDeviceSession(session.user.id);
+                if (!isValid) {
+                    alert("Sesi berakhir karena akun dipakai di Device lain!");
+                    handleLogout();
+                    return;
+                }
+            }
+
+            const { data, error } = await supabaseClient
+                .from('pendaftaran')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            listPeserta = data;
+            renderTable(listPeserta);
+        } catch (error) {
+            console.error("Gagal mengambil data:", error);
+            tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">Gagal mengambil data: ${error.message}</td></tr>`;
+        } finally {
+            btnRefresh.disabled = false;
+            btnRefresh.innerText = "Refresh Data";
+        }
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Belum ada peserta terdaftar.</td></tr>';
+            return;
+        }
+
+        data.forEach((p, idx) => {
+            const nama = p.nama || "-";
+            
+            let rawHp = String(p.no_hp || "-").trim();
+            if (rawHp !== "-" && !rawHp.startsWith('0') && !rawHp.startsWith('62')) {
+                rawHp = '0' + rawHp;
+            }
+            const noHp = rawHp;
+
+            const ktaLink = p.kta_url 
+                ? `<a href="${p.kta_url}" target="_blank" class="btn btn-info">Lihat KTA</a>` 
+                : '<small style="color:#888;">Tidak ada</small>';
+
+            const kec = p.kecamatan || "";
+            const kel = p.kelurahan || "";
+            const pengurus = p.pengurus || "";
+            const jabatan = p.jabatan || "";
+            
+            const isHadir = p.status === "Hadir" || p.status === "Hadir (Terverifikasi)";
+
+            const statusBadge = isHadir 
+                ? '<span class="badge badge-success">✔ Terverifikasi Hadir</span>' 
+                : '<span class="badge badge-warning">Belum Hadir</span>';
+
+            const actionBtn = isHadir
+                ? `<button class="btn btn-disabled" disabled>Sudah Absen</button>`
+                : `<button class="btn btn-success" id="btn-${p.id}" onclick="markAttendance(${p.id}, '${nama.replace(/'/g, "\\'")}')">Verifikasi Hadir</button>`;
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td><strong>${nama}</strong><br><small>${p.jenis_kelamin || ''}</small></td>
+                    <td>${noHp}</td>
+                    <td>${ktaLink}</td>
+                    <td>Kec. ${kec}<br>Kel. ${kel}</td>
+                    <td>${pengurus} - ${jabatan}</td>
+                    <td id="status-${p.id}">${statusBadge}</td>
+                    <td>${actionBtn}</td>
+                </tr>
+            `;
+        });
+    }
+
+    async function markAttendance(id, namaPeserta) {
+        if (confirm(`Konfirmasi kehadiran untuk: ${namaPeserta}?`)) {
+            const btn = document.getElementById(`btn-${id}`);
+            const statusCell = document.getElementById(`status-${id}`);
+
+            btn.disabled = true;
+            btn.innerText = "Proses...";
+
+            try {
+                const { error } = await supabaseClient
+                    .from('pendaftaran')
+                    .update({ status: 'Hadir (Terverifikasi)' })
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                alert(`Kehadiran ${namaPeserta} berhasil dicatat!`);
+                statusCell.innerHTML = '<span class="badge badge-success">✔ Terverifikasi Hadir</span>';
+                btn.className = "btn btn-disabled";
+                btn.innerText = "Sudah Absen";
+
+                const targetIndex = listPeserta.findIndex(p => p.id === id);
+                if(targetIndex !== -1) {
+                    listPeserta[targetIndex].status = 'Hadir (Terverifikasi)';
+                }
+            } catch (err) {
+                alert('Gagal mencatat kehadiran: ' + err.message);
+                btn.disabled = false;
+                btn.innerText = "Verifikasi Hadir";
+            }
+        }
+    }
+
+    function filterData() {
+        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+        const filtered = listPeserta.filter(p => {
+            const nama = (p.nama || "").toLowerCase();
+            const hp = String(p.no_hp || "").toLowerCase();
+            const kec = (p.kecamatan || "").toLowerCase();
+            const kel = (p.kelurahan || "").toLowerCase();
+
+            return nama.includes(query) || 
+                   hp.includes(query) || 
+                   kec.includes(query) || 
+                   kel.includes(query);
+        });
+        renderTable(filtered);
+    }
+
+    function exportToExcel() {
+        if (listPeserta.length === 0) {
+            alert("Tidak ada data untuk di-export!");
+            return;
+        }
+
+        const excelData = listPeserta.map((p, idx) => ({
+            "No": idx + 1,
+            "Waktu Daftar": p.created_at,
+            "Nama Lengkap": p.nama,
+            "Jenis Kelamin": p.jenis_kelamin,
+            "No HP": p.no_hp,
+            "Link KTA": p.kta_url || "-",
+            "Kecamatan": p.kecamatan,
+            "Kelurahan": p.kelurahan,
+            "Pengurus": p.pengurus,
+            "Jabatan": p.jabatan,
+            "Status Kehadiran": p.status
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Pendaftaran");
+
+        XLSX.writeFile(workbook, "Data_Pendaftaran_PSI_Jaktim.xlsx");
+    }
+</script>
+
+</body>
+</html>
