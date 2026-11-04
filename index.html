@@ -90,18 +90,21 @@
             border-radius: 8px;
             width: 90%;
             max-width: 480px;
+            text-align: center;
         }
 
         .modal-actions {
             display: flex;
             gap: 10px;
             margin-top: 20px;
+            justify-content: center;
         }
 
         .review-list p {
             margin: 8px 0;
             border-bottom: 1px dashed #eee;
             padding-bottom: 4px;
+            text-align: left;
         }
 
         .spinner {
@@ -163,7 +166,7 @@
                 <option value="">-- Pilih Pengurus --</option>
                 <option value="DPRt">DPRt</option>
                 <option value="DPC">DPC</option>
-                <option value="DPD">DPD</option>
+				<option value="DPD">DPD</option>
 				<option value="Anggota">Anggota</option>
             </select>
         </div>
@@ -182,7 +185,7 @@
 <!-- POP-UP MODAL REVIEW -->
 <div id="reviewModal" class="modal">
     <div class="modal-content">
-        <h3>Review Pendaftaran</h3>
+        <h3 id="modalTitle">Review Pendaftaran</h3>
         <div class="review-list" id="reviewContent"></div>
         <div id="loadingText" class="spinner">Mengunggah KTA & mengirim data... Mohon tunggu.</div>
         <div class="modal-actions" id="modalButtons">
@@ -214,7 +217,7 @@
     const dataJabatan = {
         "DPRt": ["Ketua", "Wakil Ketua 1", "Wakil Ketua 2", "Sekretaris", "Wakil Sekretaris", "Bendahara", "Wakil Bendahara", "Koord.W", "Koord.T", "Koord TPS"],
         "DPC": ["Ketua", "Sekretaris", "Wakil Sekretaris", "Bendahara", "Wakil Bendahara", "OKK", "BAPILU", "Badan Saksi", "IT & Digital", "UMKM"],
-        "DPD": ["Ketua", "Sekretaris", "Bendahara", "Wakil Bendahara", "OKK", "BAPILU", "Badan Saksi", "IT & Digital", "UMKM", "Pemuda & Olah Raga"],
+		"DPD": ["Ketua", "Sekretaris", "Bendahara", "Wakil Bendahara", "OKK", "BAPILU", "Badan Saksi", "IT & Digital", "UMKM", "Pemuda & Olah Raga"],
 		"Anggota": ["Anggota Biasa"]
     };
 
@@ -288,6 +291,13 @@
             status: 'Belum Hadir'
         };
 
+        // Kembalikan header modal ke normal jika sebelumnya habis sukses
+        document.getElementById('modalTitle').innerText = "Review Pendaftaran";
+        document.getElementById('modalButtons').innerHTML = `
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Edit</button>
+            <button type="button" class="btn btn-success" onclick="confirmAndSubmit()">Kirim Pendaftaran</button>
+        `;
+
         const reviewHtml = `
             <p><strong>Nama:</strong> ${payload.nama}</p>
             <p><strong>Jenis Kelamin:</strong> ${payload.jenis_kelamin}</p>
@@ -337,20 +347,24 @@
 
             if (error) throw error;
 
-            alert('Pendaftaran Berhasil! Terima kasih.');
+            // Reset form dan tampilkan pop-up sukses sesuai permintaan
             document.getElementById('registrationForm').reset();
             document.getElementById('kelurahan').disabled = true;
             document.getElementById('jabatan').disabled = true;
-            closeModal();
+
+            document.getElementById('modalTitle').innerText = "Sukses Terkirim";
+            document.getElementById('reviewContent').innerHTML = "<p style='text-align:center; font-size: 16px; font-weight: bold; color: #28a745; border:none;'>Terimakasih Sudah Mendaftar</p>";
+            document.getElementById('modalButtons').innerHTML = `<button type="button" class="btn btn-success" onclick="closeModal()">Tutup</button>`;
+            document.getElementById('modalButtons').style.display = 'flex';
+
         } catch (err) {
             alert('Terjadi kesalahan: ' + err.message);
             console.error(err);
+            document.getElementById('modalButtons').style.display = 'flex';
         } finally {
             document.getElementById('loadingText').style.display = 'none';
-            document.getElementById('modalButtons').style.display = 'flex';
         }
     }
 </script>
 
 </body>
-</html>
