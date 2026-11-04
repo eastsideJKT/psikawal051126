@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kawal Sidang Jokowi </title>
+    <title>Kawal Sidang Jokowi</title>
     
     <!-- SUPABASE JS SDK CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -163,6 +163,8 @@
                 <option value="">-- Pilih Pengurus --</option>
                 <option value="DPRt">DPRt</option>
                 <option value="DPC">DPC</option>
+                <option value="DPD">DPD</option>
+				<option value="Anggota">Anggota</option>
             </select>
         </div>
 
@@ -211,7 +213,9 @@
 
     const dataJabatan = {
         "DPRt": ["Ketua", "Wakil Ketua 1", "Wakil Ketua 2", "Sekretaris", "Wakil Sekretaris", "Bendahara", "Wakil Bendahara", "Koord.W", "Koord.T", "Koord TPS"],
-        "DPC": ["Ketua", "Sekretaris", "Wakil Sekretaris", "Bendahara", "Wakil Bendahara", "OKK", "BAPILU", "Badan Saksi", "IT & Digital", "UMKM"]
+        "DPC": ["Ketua", "Sekretaris", "Wakil Sekretaris", "Bendahara", "Wakil Bendahara", "OKK", "BAPILU", "Badan Saksi", "IT & Digital", "UMKM"],
+        "DPD": ["Ketua", "Sekretaris", "Bendahara", "Wakil Bendahara", "OKK", "BAPILU", "Badan Saksi", "IT & Digital", "UMKM", "Pemuda & Olah Raga"],
+		"Anggota": ["Anggota Biasa"]
     };
 
     let payload = {};
