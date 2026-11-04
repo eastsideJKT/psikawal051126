@@ -40,7 +40,7 @@
 
         .search-box { display: flex; gap: 10px; }
 
-        input[type="text"], input[type="email"], input[type="password"] {
+        input[type="text"], input[type="email"], input[type="password"], select {
             padding: 8px 12px;
             border: 1px solid #ccc;
             border-radius: 5px;
@@ -72,6 +72,7 @@
         .btn-primary { background-color: #0056b3; color: white; }
         .btn-excel { background-color: #1d6f42; color: white; }
         .btn-danger { background-color: #dc3545; color: white; }
+        .btn-warning { background-color: #ffc107; color: #333; }
         .btn-info { background-color: #17a2b8; color: white; text-decoration: none; display: inline-block; font-size: 12px; padding: 4px 8px; margin-top: 4px;}
         .btn-disabled { background-color: #6c757d; color: white; cursor: not-allowed; }
 
@@ -87,8 +88,8 @@
         .badge-success { background-color: #28a745; }
         .badge-warning { background-color: #ffc107; color: #333; }
 
-        /* MODAL LOGIN */
-        .login-overlay {
+        /* MODAL LOGIN & EDIT */
+        .login-overlay, .edit-overlay {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
@@ -99,26 +100,26 @@
             z-index: 9999;
         }
 
-        .login-card {
+        .login-card, .edit-card {
             background: #ffffff;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.2);
             width: 100%;
-            max-width: 360px;
+            max-width: 400px;
             text-align: center;
         }
 
-        .login-card h3 { margin-top: 0; color: #e31b23; }
+        .login-card h3, .edit-card h3 { margin-top: 0; color: #e31b23; }
 
-        .login-card input {
+        .login-card input, .edit-card input, .edit-card select {
             width: 100%;
             padding: 10px;
             margin: 8px 0;
             box-sizing: border-box;
         }
 
-        .login-card button { width: 100%; padding: 10px; margin-top: 10px; }
+        .login-card button, .edit-card button { width: 100%; padding: 10px; margin-top: 10px; }
 
         .error-msg {
             color: red;
@@ -140,6 +141,43 @@
             <input type="password" id="adminPassword" placeholder="Password..." required>
             <div id="errorMsg" class="error-msg">Login gagal! Periksa email/password.</div>
             <button type="submit" id="btnLogin" class="btn btn-primary">Masuk</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL EDIT DATA PESERTA -->
+<div id="editModal" class="edit-overlay" style="display: none;">
+    <div class="edit-card">
+        <h3>Edit Data Peserta</h3>
+        <form onsubmit="saveEditedData(event)">
+            <input type="hidden" id="editId">
+            <div style="text-align:left; font-size:13px; font-weight:600; margin-top:5px;">Nama Lengkap:</div>
+            <input type="text" id="editNama" required>
+            
+            <div style="text-align:left; font-size:13px; font-weight:600; margin-top:5px;">Jenis Kelamin:</div>
+            <select id="editJenisKelamin">
+                <option value="-">-- Pilih --</option>
+                <option value="Laki-laki">Laki-laki</option>
+                <option value="Perempuan">Perempuan</option>
+            </select>
+
+            <div style="text-align:left; font-size:13px; font-weight:600; margin-top:5px;">No. HP:</div>
+            <input type="text" id="editNoHp">
+
+            <div style="text-align:left; font-size:13px; font-weight:600; margin-top:5px;">Kecamatan:</div>
+            <input type="text" id="editKecamatan" required>
+
+            <div style="text-align:left; font-size:13px; font-weight:600; margin-top:5px;">Kelurahan:</div>
+            <input type="text" id="editKelurahan">
+
+            <div style="text-align:left; font-size:13px; font-weight:600; margin-top:5px;">Pengurus Tingkat:</div>
+            <input type="text" id="editPengurus">
+
+            <div style="text-align:left; font-size:13px; font-weight:600; margin-top:5px;">Jabatan:</div>
+            <input type="text" id="editJabatan">
+
+            <button type="submit" class="btn btn-success">Simpan Perubahan</button>
+            <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Batal</button>
         </form>
     </div>
 </div>
@@ -169,7 +207,7 @@
                 <th>Wilayah</th>
                 <th>Pengurus & Jabatan</th>
                 <th>Status Kehadiran</th>
-                <th>Aksi Verifikasi</th>
+                <th>Aksi / Verifikasi</th>
             </tr>
         </thead>
         <tbody id="tableBody">
@@ -181,7 +219,7 @@
 </div>
 
 <script>
-    // CONFIG SUPABASE (SESUAIKAN DENGAN PROJECT BARU ANDA)
+    // CONFIG SUPABASE
     const SUPABASE_URL = "https://ropbwbvjqrdzycabgwyt.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_K4EyVCYmXMIKPuXKVk94dw_J0vfPPq9";
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -327,10 +365,10 @@
                 ? `<a href="${p.kta_url}" target="_blank" class="btn btn-info">Lihat KTA</a>` 
                 : '<small style="color:#888;">Tidak ada</small>';
 
-            const kec = p.kecamatan || "";
-            const kel = p.kelurahan || "";
-            const pengurus = p.pengurus || "";
-            const jabatan = p.jabatan || "";
+            const kec = p.kecamatan || "-";
+            const kel = p.kelurahan || "-";
+            const pengurus = p.pengurus || "-";
+            const jabatan = p.jabatan || "-";
             
             const isHadir = p.status === "Hadir" || p.status === "Hadir (Terverifikasi)";
 
@@ -345,16 +383,69 @@
             tbody.innerHTML += `
                 <tr>
                     <td>${idx + 1}</td>
-                    <td><strong>${nama}</strong><br><small>${p.jenis_kelamin || ''}</small></td>
+                    <td><strong>${nama}</strong><br><small>${p.jenis_kelamin || '-'}</small></td>
                     <td>${noHp}</td>
                     <td>${ktaLink}</td>
                     <td>Kec. ${kec}<br>Kel. ${kel}</td>
                     <td>${pengurus} - ${jabatan}</td>
                     <td id="status-${p.id}">${statusBadge}</td>
-                    <td>${actionBtn}</td>
+                    <td>
+                        ${actionBtn}
+                        <button class="btn btn-warning" style="margin-top:4px;" onclick="openEditModal(${p.id})">Edit Data</button>
+                    </td>
                 </tr>
             `;
         });
+    }
+
+    // FUNGSI EDIT DATA OLEH ADMIN
+    function openEditModal(id) {
+        const p = listPeserta.find(item => item.id === id);
+        if (!p) return;
+
+        document.getElementById('editId').value = p.id;
+        document.getElementById('editNama').value = p.nama || "";
+        document.getElementById('editJenisKelamin').value = p.jenis_kelamin || "-";
+        document.getElementById('editNoHp').value = p.no_hp || "";
+        document.getElementById('editKecamatan').value = p.kecamatan || "";
+        document.getElementById('editKelurahan').value = p.kelurahan || "";
+        document.getElementById('editPengurus').value = p.pengurus || "";
+        document.getElementById('editJabatan').value = p.jabatan || "";
+
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+
+    async function saveEditedData(e) {
+        e.preventDefault();
+        const id = document.getElementById('editId').value;
+        const updatedData = {
+            nama: document.getElementById('editNama').value,
+            jenis_kelamin: document.getElementById('editJenisKelamin').value,
+            no_hp: document.getElementById('editNoHp').value || "-",
+            kecamatan: document.getElementById('editKecamatan').value,
+            kelurahan: document.getElementById('editKelurahan').value || "-",
+            pengurus: document.getElementById('editPengurus').value || "-",
+            jabatan: document.getElementById('editJabatan').value || "-"
+        };
+
+        try {
+            const { error } = await supabaseClient
+                .from('pendaftaran')
+                .update(updatedData)
+                .eq('id', id);
+
+            if (error) throw error;
+
+            alert('Data peserta berhasil diperbarui!');
+            closeEditModal();
+            loadData();
+        } catch (err) {
+            alert('Gagal memperbarui data: ' + err.message);
+        }
     }
 
     async function markAttendance(id, namaPeserta) {
