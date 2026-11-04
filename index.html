@@ -187,7 +187,7 @@
     <div class="modal-content">
         <h3 id="modalTitle">Review Pendaftaran</h3>
         <div class="review-list" id="reviewContent"></div>
-        <div id="loadingText" class="spinner">Mengunggah KTA & mengirim data... Mohon tunggu.</div>
+        <div id="loadingText" class="spinner">Memeriksa data & mengunggah KTA... Mohon tunggu.</div>
         <div class="modal-actions" id="modalButtons">
             <button type="button" class="btn btn-secondary" onclick="closeModal()">Edit</button>
             <button type="button" class="btn btn-success" onclick="confirmAndSubmit()">Kirim Pendaftaran</button>
@@ -291,8 +291,8 @@
             status: 'Belum Hadir'
         };
 
-        // Kembalikan header modal ke normal jika sebelumnya habis sukses
         document.getElementById('modalTitle').innerText = "Review Pendaftaran";
+        document.getElementById('loadingText').innerText = "Memeriksa data & mengunggah KTA... Mohon tunggu.";
         document.getElementById('modalButtons').innerHTML = `
             <button type="button" class="btn btn-secondary" onclick="closeModal()">Edit</button>
             <button type="button" class="btn btn-success" onclick="confirmAndSubmit()">Kirim Pendaftaran</button>
@@ -322,6 +322,23 @@
         document.getElementById('modalButtons').style.display = 'none';
 
         try {
+            // Cek apakah nomor HP sudah terdaftar di database
+            const { data: existingData, error: checkError } = await supabaseClient
+                .from('pendaftaran')
+                .select('no_hp')
+                .eq('no_hp', payload.no_hp);
+
+            if (checkError) throw checkError;
+
+            if (existingData && existingData.length > 0) {
+                document.getElementById('modalTitle').innerText = "Perhatian";
+                document.getElementById('reviewContent').innerHTML = "<p style='text-align:center; font-size: 16px; font-weight: bold; color: #dc3545; border:none;'>ANDA SUDAH TERDAFTAR</p>";
+                document.getElementById('modalButtons').innerHTML = `<button type="button" class="btn btn-secondary" onclick="closeModal()">Tutup</button>`;
+                document.getElementById('modalButtons').style.display = 'flex';
+                document.getElementById('loadingText').style.display = 'none';
+                return;
+            }
+
             // Upload file KTA ke Supabase Storage bucket 'kta_uploads'
             const fileExt = selectedFile.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
@@ -347,7 +364,7 @@
 
             if (error) throw error;
 
-            // Reset form dan tampilkan pop-up sukses sesuai permintaan
+            // Reset form dan tampilkan pop-up sukses
             document.getElementById('registrationForm').reset();
             document.getElementById('kelurahan').disabled = true;
             document.getElementById('jabatan').disabled = true;
@@ -368,3 +385,4 @@
 </script>
 
 </body>
+</html>
